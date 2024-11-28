@@ -4,8 +4,7 @@ import requests
 app = Flask(__name__)
 
 # URL API yang telah Anda deploy di Cloud Run
-API_URL = "https://moneypredictionapi-863244423296.asia-southeast2.run.app/predict"  # Gantilah dengan URL Cloud Run Anda
-
+API_URL = "ISI DENGAN API" 
 @app.route('/')
 def index():
     # Menampilkan halaman utama dengan form upload
