@@ -54,14 +54,14 @@ def predict():
 
         # Memetakan kelas yang diprediksi ke nilai nominal
         nominal_mapping = {
-            0: 1000,
-            1: 10000,
-            2: 100000,
-            3: 2000,
-            4: 20000,
-            5: 5000,
-            6: 50000,
-            7: 75000
+            0: "1ribu",
+            1: "10ribu",
+            2: "100ribu",
+            3: "2ribu",
+            4: "20ribu",
+            5: "5ribu",
+            6: "50ribu",
+            7: "75ribu"
         }
 
         # Mendapatkan nilai nominal untuk kelas yang diprediksi
