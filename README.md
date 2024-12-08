@@ -7,4 +7,3 @@
 ## Technology We Used 💡
 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS2r0XfEqqb9HB1bt4_P_M5u8g4LxYTmbqRuA&s" alt="cloud run" width="100">
 <img src="https://k21academy.com/wp-content/uploads/2021/02/Google-Cloud-Storage-logo.png" alt="cloud storage" width="100"> 
-<img src="https://i.pinimg.com/736x/ec/69/a1/ec69a19fe89044730852ab07d5d600ef.jpg" alt="cloud sql" width="100"> 
