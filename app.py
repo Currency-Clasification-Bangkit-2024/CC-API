@@ -66,7 +66,7 @@ def predict():
         predicted_nominal = nominal_mapping[predicted_class]
 
         response = {
-            "hasilPrediksi": f"{predicted_nominal,}",  # Format 1.000
+            "hasilPrediksi": f"{predicted_nominal}",  # Format 1.000
             "ConfidenceScore": float(round(confidence_score, 1))  # Konversi ke float
         }
         return jsonify(response)
