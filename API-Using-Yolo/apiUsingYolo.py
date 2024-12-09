@@ -5,22 +5,19 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# Load the YOLO model
-model = YOLO('modelYolo.pt')  # Pastikan modelYolo.pt sudah berada di direktori yang benar
+model = YOLO('modelYolo.pt')
 
-# Mapping nominal berdasarkan kelas yang ada di model
 nominal_mapping = {
-    0: 100000,  # 100 ribu
-    1: 10000,   # 10 ribu
-    2: 1000,    # 1 ribu
-    3: 20000,   # 20 ribu
-    4: 2000,    # 2 ribu
-    5: 50000,   # 50 ribu
-    6: 5000,    # 5 ribu
-    7: 75000    # 75 ribu
+    0: "100ribu",
+    1: "10ribu",
+    2: "1ribu",
+    3: "20ribu",
+    4: "2ribu",
+    5: "50ribu",
+    6: "5ribu",
+    7: "75ribu"
 }
 
-# HTML template for the upload form
 html_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -39,7 +36,7 @@ html_template = """
     {% if detections is not none %}
         <h2>Detection Results</h2>
         <p><strong>Detected Nominals:</strong> {{ detections }}</p>
-        <p><strong>Total Value:</strong> {{ total_value }} IDR</p>
+        <p><strong>Total Value:</strong> {{ total_value }}</p>
     {% endif %}
 
     {% if detection_info %}
@@ -54,51 +51,59 @@ html_template = """
 </html>
 """
 
-# Tambahkan variabel untuk menyimpan informasi deteksi
 detection_info = []
 
-def process_image(image):
-    # Melakukan prediksi dengan threshold confidence dan NMS
-    results = model.predict(image, conf=0.5, iou=0.4)  # Atur threshold untuk NMS dan confidence
+def iou(box1, box2):
+    x1, y1, x2, y2 = box1
+    x1p, y1p, x2p, y2p = box2
+    xi1, yi1 = max(x1, x1p), max(y1, y1p)
+    xi2, yi2 = min(x2, x2p), min(y2, y2p)
+    inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
+    box1_area = (x2 - x1) * (y2 - y1)
+    box2_area = (x2p - x1p) * (y2p - y1p)
+    union_area = box1_area + box2_area - inter_area
+    return inter_area / union_area if union_area > 0 else 0
 
-    detections = results[0].boxes.xywh if results else []
-    classes = results[0].boxes.cls if results else []
-    confidences = results[0].boxes.conf if results else []
+def process_image(image):
+    results = model.predict(image, conf=0.4, iou=0.3)
+
+    detections = results[0].boxes.xyxy.cpu().numpy()
+    classes = results[0].boxes.cls.cpu().numpy()
+    confidences = results[0].boxes.conf.cpu().numpy()
 
     detected_nominals = []
     total_value = 0
     detection_info.clear()
 
-    # NMS secara internal sudah diterapkan oleh YOLOv8, jika perlu disesuaikan dapat dilakukan di sini
-    for i, detection in enumerate(detections):
-        cls = int(classes[i].item())
-        conf = confidences[i].item()
-        bbox = detection.cpu().numpy().tolist()
+    temp_detections = []
+    for i, box in enumerate(detections):
+        cls = int(classes[i])
+        conf = confidences[i]
+        bbox = box.tolist()
 
-        # Tambahkan informasi deteksi untuk debugging
         detection_info.append(f"Class: {cls}, Confidence: {conf:.2f}, BBox: {bbox}")
-
-        # Filter deteksi dengan confidence rendah dan tambahkan verifikasi kelas
-        if conf < 0.5:
-            continue  # Abaikan deteksi dengan confidence < 0.5
 
         if cls in nominal_mapping:
             nominal = nominal_mapping[cls]
-            detected_nominals.append(nominal)
-            total_value += nominal
+            temp_detections.append({
+                'nominal': nominal,
+                'confidence': conf,
+                'bbox': bbox
+            })
 
-    print(f"Raw Output: {detection_info}")  # Debug log
-    return detected_nominals, total_value, detection_info
+    unique_detections = []
+    for det in temp_detections:
+        bbox = det['bbox']
+        if not any(
+            iou(bbox, u['bbox']) > 0.5 for u in unique_detections
+        ):
+            unique_detections.append(det)
+            nominal = det['nominal']
+            total_value += int(nominal.replace("ribu", "")) * 1000
 
-
-# Contoh penggunaan dengan file gambar (misalnya dalam Flask route)
-# Jika Anda menggunakan Flask untuk upload gambar, ini akan diproses dengan cara yang sama
-def detect_from_file(image_path):
-    image = cv2.imread(image_path)
-    detected_nominals, total_value, detection_info = process_image(image)
-    print(detected_nominals, total_value, detection_info)
-
-
+    detected_nominals = [d['nominal'] for d in unique_detections]
+    total_value_formatted = f"{total_value // 1000}ribu"
+    return detected_nominals, total_value_formatted, detection_info
 
 @app.route('/')
 def home():
@@ -109,21 +114,18 @@ def detect():
     if not request.files or len(request.files) == 0:
         return jsonify({'error': 'Tidak ada file gambar yang disediakan'}), 400
 
-    # Get the first file from the uploaded files
     file = next(iter(request.files.values()))
     if not file or not file.filename.lower().endswith(('png', 'jpg', 'jpeg')):
         return jsonify({'error': 'Tipe file tidak valid, diharapkan gambar'}), 400
 
     try:
-        # Open and preprocess the image
         image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
         detected_nominals, total_value, detection_info = process_image(image)
 
-        # Prepare the response in JSON format
         response = {
-            'detections': detected_nominals,  # List of detected nominal values
-            'total_value': total_value,       # Total value of detected money
-            'detection_info': detection_info  # Additional debug information
+            'detections': detected_nominals,
+            'total_value': total_value,
+            'detection_info': detection_info
         }
 
         return jsonify(response)
