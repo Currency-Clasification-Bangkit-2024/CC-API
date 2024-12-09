@@ -6,6 +6,7 @@ from ultralytics import YOLO
 app = Flask(__name__)
 
 model = YOLO('modelYolo.pt')
+model = YOLO('modelYolo.pt')
 
 nominal_mapping = {
     0: "100ribu",
@@ -123,6 +124,9 @@ def detect():
         detected_nominals, total_value, detection_info = process_image(image)
 
         response = {
+            'detections': detected_nominals,
+            'total_value': total_value,
+            'detection_info': detection_info
             'detections': detected_nominals,
             'total_value': total_value,
             'detection_info': detection_info
