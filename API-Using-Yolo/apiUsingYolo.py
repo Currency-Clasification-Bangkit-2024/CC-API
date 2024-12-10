@@ -2,18 +2,39 @@ from flask import Flask, request, jsonify, render_template_string
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from google.cloud import storage
+import os
 
 app = Flask(__name__)
 
-model = YOLO('modelYolo.pt')
+# Fungsi untuk mengunduh model dari Google Cloud Storage
+def download_model(bucket_name, model_file, local_path):
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(model_file)
+    blob.download_to_filename(local_path)
+    print(f"Model {model_file} berhasil diunduh ke {local_path}")
 
+# Konfigurasi nama bucket dan file model
+BUCKET_NAME = "model_machine_learning_yolov8"
+MODEL_FILE = "modelYolo.pt"
+LOCAL_MODEL_PATH = "/tmp/modelYolo.pt"
+
+# Periksa apakah model sudah ada secara lokal, jika tidak, unduh
+if not os.path.exists(LOCAL_MODEL_PATH):
+    download_model(BUCKET_NAME, MODEL_FILE, LOCAL_MODEL_PATH)
+
+# Load YOLO model
+model = YOLO(LOCAL_MODEL_PATH)
+
+# Mapping nominal berdasarkan kelas
 nominal_mapping = {
     0: "100ribu",
     1: "10ribu",
     2: "1ribu",
-    3: "20ribu",
-    4: "2ribu",
-    5: "50ribu",
+    3: "2ribu",
+    4: "50ribu",
+    5: "20ribu",
     6: "5ribu",
     7: "75ribu"
 }
@@ -57,7 +78,7 @@ def iou(box1, box2):
     x1, y1, x2, y2 = box1
     x1p, y1p, x2p, y2p = box2
     xi1, yi1 = max(x1, x1p), max(y1, y1p)
-    xi2, yi2 = min(x2, x2p), min(y2, y2p)
+    xi2, yi2 = min(x2, x2p)
     inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
     box1_area = (x2 - x1) * (y2 - y1)
     box2_area = (x2p - x1p) * (y2p - y1p)
@@ -65,12 +86,14 @@ def iou(box1, box2):
     return inter_area / union_area if union_area > 0 else 0
 
 def process_image(image):
+    print("Memulai pemrosesan gambar...")
     results = model.predict(image, conf=0.4, iou=0.3)
 
     detections = results[0].boxes.xyxy.cpu().numpy()
     classes = results[0].boxes.cls.cpu().numpy()
     confidences = results[0].boxes.conf.cpu().numpy()
 
+    print(f"Deteksi: {detections}, Kelas: {classes}, Confidences: {confidences}")
     detected_nominals = []
     total_value = 0
     detection_info.clear()
@@ -103,6 +126,8 @@ def process_image(image):
 
     detected_nominals = [d['nominal'] for d in unique_detections]
     total_value_formatted = f"{total_value // 1000}ribu"
+    
+    print(f"Nominal yang terdeteksi: {detected_nominals}, Total nilai: {total_value_formatted}")
     return detected_nominals, total_value_formatted, detection_info
 
 @app.route('/')
@@ -126,9 +151,6 @@ def detect():
             'detections': detected_nominals,
             'total_value': total_value,
             'detection_info': detection_info
-            'detections': detected_nominals,
-            'total_value': total_value,
-            'detection_info': detection_info
         }
 
         return jsonify(response)
@@ -137,4 +159,4 @@ def detect():
         return jsonify({'error': f'Error memproses gambar: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8080)
