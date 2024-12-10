@@ -6,7 +6,6 @@ from ultralytics import YOLO
 app = Flask(__name__)
 
 model = YOLO('modelYolo.pt')
-model = YOLO('modelYolo.pt')
 
 nominal_mapping = {
     0: "100ribu",
