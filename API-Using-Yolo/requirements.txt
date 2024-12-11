@@ -2,4 +2,3 @@ Flask
 numpy
 opencv-python
 ultralytics
-google-cloud-storage
