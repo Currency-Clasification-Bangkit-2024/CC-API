@@ -1,4 +1,3 @@
 .gitignore
 model1.h5
-modelYolo.pt
-/API-Using-Yolo/venv
+
